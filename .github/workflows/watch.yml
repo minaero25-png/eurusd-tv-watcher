@@ -2,8 +2,8 @@ name: TV Signal Watcher
 
 on:
   schedule:
-    # Every 30 min at :02 and :32 UTC (slight buffer after M30 candle close)
-    - cron: '2,32 * * * *'
+    # Every 15 min — extra slots compensate for GitHub Actions cron delays/skips
+    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 permissions:
