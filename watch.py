@@ -18,7 +18,7 @@ from tradingview_ta import TA_Handler, Interval
 STATE_FILE = Path(__file__).parent / "state.json"
 
 SYMBOL = os.environ.get("TV_SYMBOL", "EURUSD")
-EXCHANGE = os.environ.get("TV_EXCHANGE", "FX_IDC")
+EXCHANGE = os.environ.get("TV_EXCHANGE", "FX")
 SCREENER = os.environ.get("TV_SCREENER", "forex")
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
