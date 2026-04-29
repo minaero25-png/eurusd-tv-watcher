@@ -36,10 +36,16 @@ jobs:
         run: |
           git config user.name "tv-signal-watcher[bot]"
           git config user.email "tv-signal-watcher@users.noreply.github.com"
-          if ! git diff --quiet state.json; then
-            git add state.json
-            git commit -m "state: update TV signals [skip ci]"
-            git push
-          else
+          if git diff --quiet state.json; then
             echo "No state change to commit"
+            exit 0
           fi
+          git add state.json
+          git commit -m "state: update TV signals [skip ci]"
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push && exit 0
+            echo "push attempt $i failed, retrying..."
+            sleep 3
+          done
+          echo "❌ failed to push state after 3 attempts"
+          exit 1
