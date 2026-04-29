@@ -1,9 +1,7 @@
 name: TV Signal Watcher
 
 on:
-  schedule:
-    # Every 15 min — extra slots compensate for GitHub Actions cron delays/skips
-    - cron: '*/15 * * * *'
+  # Triggered externally by cron-job.org (reliable scheduler) — see README
   workflow_dispatch:
 
 permissions:
