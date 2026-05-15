@@ -41,9 +41,16 @@ jobs:
           git add state.json
           git commit -m "state: update TV signals [skip ci]"
           for i in 1 2 3; do
-            git pull --rebase origin main && git push && exit 0
+            # -X theirs = if state.json conflicts during rebase, this run wins
+            # (this run's TV reco was read later = freshest)
+            if git pull --rebase -X theirs origin main; then
+              git push && exit 0
+            else
+              # rebase failed → abort so working tree is clean before retry
+              git rebase --abort 2>/dev/null || true
+            fi
             echo "push attempt $i failed, retrying..."
-            sleep 3
+            sleep $((i * 3))
           done
           echo "❌ failed to push state after 3 attempts"
           exit 1
