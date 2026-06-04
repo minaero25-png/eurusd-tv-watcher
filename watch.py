@@ -192,6 +192,12 @@ def _groq_chat(prompt: str) -> str:
         headers={
             "Authorization": f"Bearer {GROQ_API_KEY}",
             "Content-Type": "application/json",
+            # Cloudflare in front of api.groq.com returns 403/1010 for the default
+            # "Python-urllib" UA — present a normal browser UA to pass.
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            ),
         },
     )
     for attempt in range(3):
