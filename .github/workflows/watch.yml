@@ -28,6 +28,11 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_ALLOWED_CHAT_IDS: ${{ secrets.TELEGRAM_ALLOWED_CHAT_IDS }}
+          # News enrichment (best-effort — plain alert still sends if these are absent/fail)
+          TG_API_ID: ${{ secrets.TG_API_ID }}
+          TG_API_HASH: ${{ secrets.TG_API_HASH }}
+          FJ_SESSION_STRING: ${{ secrets.FJ_SESSION_STRING }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: python watch.py
 
       - name: Commit state if changed

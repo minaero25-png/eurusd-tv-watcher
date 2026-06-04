@@ -31,6 +31,22 @@ INTERVALS = {
     "H1": Interval.INTERVAL_1_HOUR,
 }
 
+# ── News enrichment config (Financial Juice via Telethon + Groq severity) ──
+# All best-effort: if any of these are unset/fail, the plain TA alert still sends.
+# Use a BURNER Telegram account session (NOT a personal account) — see README "News enrichment".
+TG_API_ID = os.environ.get("TG_API_ID", "")
+TG_API_HASH = os.environ.get("TG_API_HASH", "")
+FJ_SESSION_STRING = os.environ.get("FJ_SESSION_STRING", "")
+FJ_CHANNEL = os.environ.get("FJ_CHANNEL", "financialjuicelive")
+FJ_LOOKBACK_MIN = int(os.environ.get("FJ_LOOKBACK_MIN", "60"))
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_TIMEOUT = 30
+
+# severity: HIGH = big/dangerous move → red ; credibility: HIGH = trustworthy → green
+SEV_EMOJI = {"HIGH": "🔴 สูง", "MEDIUM": "🟡 ปานกลาง", "LOW": "🟢 ต่ำ"}
+CRED_EMOJI = {"HIGH": "🟢 สูง", "MEDIUM": "🟡 ปานกลาง", "LOW": "🔴 ต่ำ"}
+
 RECO_EMOJI = {
     "STRONG_BUY": "🟢🟢",
     "BUY": "🟢",
@@ -104,6 +120,121 @@ def send_telegram(text: str) -> None:
             print(f"❌ Telegram failed chat_id={chat_id}: {e}")
 
 
+def _html_escape(s: str) -> str:
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def fetch_recent_fj(minutes: int) -> list:
+    """Pull Financial Juice channel messages from the last `minutes` via a Telethon
+    StringSession (burner account). Returns ['HH:MM | text', ...] in chronological order.
+    Best-effort: returns [] on any missing config / failure — never raises."""
+    if not (TG_API_ID and TG_API_HASH and FJ_SESSION_STRING):
+        print("ℹ️ FJ enrichment skipped — TG_API_ID/TG_API_HASH/FJ_SESSION_STRING not all set")
+        return []
+    try:
+        from telethon.sync import TelegramClient
+        from telethon.sessions import StringSession
+    except ImportError:
+        print("⚠️ telethon not installed — skip FJ enrichment")
+        return []
+
+    from datetime import timedelta
+    since = datetime.now(timezone.utc) - timedelta(minutes=minutes)
+    out = []
+    client = TelegramClient(StringSession(FJ_SESSION_STRING), int(TG_API_ID), TG_API_HASH)
+    try:
+        # connect() + auth check instead of start(): start() would fall back to an
+        # interactive input() prompt if the session were invalid, hanging the CI runner.
+        client.connect()
+        if not client.is_user_authorized():
+            print("⚠️ FJ session not authorized (expired/invalid) — skip enrichment")
+            return []
+        entity = client.get_entity(FJ_CHANNEL)
+        for msg in client.iter_messages(entity, offset_date=None, reverse=False):
+            if msg.date < since:
+                break
+            if not msg.message:
+                continue
+            ict = (msg.date + timedelta(hours=7)).strftime("%H:%M")
+            text = " ".join(msg.message.split())
+            out.append(f"{ict} | {text}")
+    except Exception as e:
+        print(f"⚠️ FJ fetch failed: {type(e).__name__}: {e}")
+        return []
+    finally:
+        try:
+            client.disconnect()
+        except Exception:
+            pass
+    out.reverse()  # API returns newest-first → flip to chronological
+    print(f"  FJ: pulled {len(out)} items in last {minutes}m")
+    return out
+
+
+def analyze_flip_with_groq(changes: list, fj_items: list) -> str:
+    """Ask Groq which recent FJ headline most likely drove the TA flip, and rate
+    severity (how market-moving) + credibility (confirmed vs speculative).
+    Returns a formatted Thai HTML block for Telegram, or '' on any failure."""
+    if not GROQ_API_KEY or not fj_items:
+        return ""
+    try:
+        from groq import Groq
+    except ImportError:
+        print("⚠️ groq SDK not installed — skip analysis")
+        return ""
+
+    flip_desc = ", ".join(f"{c['tf']} {c['old']}→{c['new']}" for c in changes)
+    headlines = "\n".join(fj_items[-25:])  # cap to stay cheap
+    prompt = (
+        "You are a forex macro analyst watching EUR/USD. The TradingView technical rating "
+        f"just flipped: {flip_desc}. This flip means price moved. Below are Financial Juice "
+        "headlines from the minutes before the flip (ICT time | text):\n\n"
+        f"{headlines}\n\n"
+        "Pick the SINGLE most likely news driver of this EUR/USD move. If none of the headlines "
+        "plausibly explain it (pure technical / thin liquidity), set driver_th to null.\n"
+        "Rate:\n"
+        "- severity: how market-moving — HIGH (>30 pips potential) / MEDIUM (10-30) / LOW (minor)\n"
+        "- credibility: confirmed vs speculative — HIGH (official action/confirmed data) / "
+        "MEDIUM (one-sided statement, unconfirmed) / LOW (rumor/speculation)\n\n"
+        "Write driver_th and reasoning_th in THAI, concise. Output strict JSON only, no markdown:\n"
+        '{"driver_th": "...", "driver_time": "HH:MM", "severity": "HIGH|MEDIUM|LOW", '
+        '"credibility": "HIGH|MEDIUM|LOW", "reasoning_th": "1-2 ประโยคภาษาไทย"}'
+    )
+
+    try:
+        client = Groq(api_key=GROQ_API_KEY, timeout=GROQ_TIMEOUT)
+        resp = client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=500,
+            response_format={"type": "json_object"},
+        )
+        data = json.loads(resp.choices[0].message.content)
+    except Exception as e:
+        print(f"⚠️ Groq analysis failed: {type(e).__name__}: {e}")
+        return ""
+
+    driver = data.get("driver_th")
+    if not driver:
+        return "🤖 <i>ไม่พบข่าวที่อธิบายการพลิกได้ชัด — อาจเป็นการเคลื่อนไหวทางเทคนิค/สภาพคล่องบาง</i>"
+
+    t = data.get("driver_time", "")
+    sev = SEV_EMOJI.get(str(data.get("severity", "")).upper(), "—")
+    cred = CRED_EMOJI.get(str(data.get("credibility", "")).upper(), "—")
+    reason = _html_escape(str(data.get("reasoning_th", "")).strip())
+    driver_e = _html_escape(str(driver).strip())
+    t_str = f" ({t})" if t else ""
+    lines = [
+        f"🤖 <b>น่าจะเพราะ:</b> {driver_e}{t_str}",
+        f"<b>ความรุนแรง:</b> {sev}",
+        f"<b>น่าเชื่อถือ:</b> {cred}",
+    ]
+    if reason:
+        lines.append(reason)
+    return "\n".join(lines)
+
+
 def format_alert(changes: list, current: dict, now_utc: datetime) -> str:
     ict = now_utc.astimezone(timezone.utc).timestamp()
     # ICT = UTC+7
@@ -161,6 +292,14 @@ def main() -> int:
 
     if changes and not is_first_run:
         msg = format_alert(changes, current, now)
+        # News enrichment — best-effort. Wrapped so a failure here never blocks the alert.
+        try:
+            fj_items = fetch_recent_fj(FJ_LOOKBACK_MIN)
+            analysis = analyze_flip_with_groq(changes, fj_items)
+            if analysis:
+                msg = msg + "\n\n" + analysis
+        except Exception as e:
+            print(f"⚠️ enrichment failed (sending plain alert): {type(e).__name__}: {e}")
         print(msg)
         send_telegram(msg)
     elif is_first_run:

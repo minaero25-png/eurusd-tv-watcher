@@ -54,6 +54,74 @@ gh repo create eurusd-tv-watcher --private --source=. --push
 - ข้ามเสาร์/อาทิตย์ (FX ปิด)
 - State เก็บใน `state.json` (commit กลับ repo อัตโนมัติ)
 
+## News enrichment (ทำไม TA ถึงพลิก) — optional
+
+เพิ่มชั้นวิเคราะห์: เวลา TA พลิก → ดึงข่าว Financial Juice ล่าสุด → ให้ **Groq** ประเมินว่า
+ข่าวไหนน่าจะเป็นตัวขับ + **รุนแรง**แค่ไหน + **น่าเชื่อถือ**แค่ไหน → แปะท้าย alert.
+
+> **Best-effort เสมอ** — ถ้า secret ไม่ครบ / Telethon ล่ม / Groq ล่ม → alert TA ธรรมดายังส่งปกติ
+> ไม่กิน Anthropic / Agent SDK credit (ใช้ Groq ล้วน — ถูกมาก รันบน cloud)
+
+### ⚠️ ใช้ BURNER account เท่านั้น — ห้ามใช้บัญชี Telegram ส่วนตัว
+
+`FJ_SESSION_STRING` = กุญแจล็อกอินเข้าบัญชี Telegram **เต็ม**. ถ้าใช้บัญชีส่วนตัวแล้วหลุด =
+คนร้ายอ่านแชทส่วนตัว + แอบอ้างเป็นเราได้. **วิธีถูก:** สมัครบัญชี Telegram ใหม่ (เบอร์ใหม่/เสมือน)
+ที่ว่างเปล่า → join channel สาธารณะ `financialjuicelive` → ใช้บัญชีนี้เท่านั้น. ถ้า session burner หลุด
+แย่ที่สุด = อ่าน channel สาธารณะ + แอบอ้างบัญชีเปล่าที่ไม่มีใครรู้จัก = เสียหายเกือบศูนย์.
+
+> เก็บ repo เป็น **private** เมื่อใช้ enrichment (secret มากขึ้น).
+
+### ขั้นตอน (ครั้งเดียว)
+
+1. **สร้าง burner account** — เบอร์ใหม่ → ติดตั้ง Telegram → join `financialjuicelive`
+2. **ขอ API creds** — [my.telegram.org](https://my.telegram.org) (ล็อกอินด้วย burner) → API development tools → ได้ `api_id` + `api_hash`
+3. **สร้าง session string** (รันในเครื่อง ครั้งเดียว):
+   ```powershell
+   cd C:\Users\ELLE\eurusd-trading\tv-signal-watcher
+   pip install telethon groq
+   python gen_session.py
+   # ใส่ api_id / api_hash / เบอร์ burner → Telegram ส่ง code มา → ใส่ code
+   # copy บรรทัด SESSION STRING ที่ปริ้นออกมา
+   ```
+4. **(มี Groq key อยู่แล้ว)** — `GROQ_API_KEY` ตัวเดียวกับที่ news_aggregator ใช้ (`automation/news_aggregator/.env`)
+5. **ตั้ง GitHub Secrets เพิ่ม** (Settings → Secrets → Actions):
+
+   | Name | Value |
+   |---|---|
+   | `TG_API_ID` | api_id จาก my.telegram.org |
+   | `TG_API_HASH` | api_hash จาก my.telegram.org |
+   | `FJ_SESSION_STRING` | บรรทัดที่ `gen_session.py` ปริ้น |
+   | `GROQ_API_KEY` | key เดียวกับ news_aggregator |
+
+6. กด **Run workflow** ทดสอบ — ครั้งที่ reco เปลี่ยน จะเห็นบล็อก 🤖 ต่อท้าย
+
+### เปลี่ยนเบอร์ burner รายปี (number lifecycle)
+
+burner ผูกกับ **ซิมเน็ตรายปี** → เบอร์เปลี่ยนตามตารางนี้:
+
+| วันที่ | เกิดอะไร | ต้องทำ |
+|---|---|---|
+| **11 ก.ย. 2026** | ซิมปัจจุบันหมดอายุ + เริ่มซิมใหม่วันเดียวกัน (เบอร์เปลี่ยน) | Change Number → เบอร์ใหม่ |
+| **11 ก.ย. 2027** | ซิมหมดอายุ (เบอร์เปลี่ยน) | Change Number → เบอร์ใหม่ |
+| **11 ก.ย. 2028** | เปลี่ยนเป็นซิม**รายเดือน** เบอร์คงที่ถาวร | Change Number ครั้งสุดท้าย → จบ ไม่ต้องทำอีก |
+
+> **session ไม่ผูกกับซิม** — watcher ใช้ `FJ_SESSION_STRING` ที่ gen ไว้ ไม่ต้องใช้เบอร์ในการรันแต่ละครั้ง.
+> เบอร์จำเป็นแค่ตอน (ก) สร้างบัญชี+gen session ครั้งแรก (ข) เปลี่ยนเบอร์/กู้บัญชี.
+
+**ขั้นตอน Change Number** (ทำตอนได้ซิมใหม่ ขณะยัง login บัญชี burner อยู่):
+
+1. เอาซิมใหม่เสียบมือถือ (ต้องรับ SMS ได้)
+2. Telegram (login burner อยู่) → Settings → Edit profile → แตะเบอร์ → **Change Number** → ใส่เบอร์ใหม่ → รับ code บนซิมใหม่
+3. เสร็จ — บัญชี/session เดิมอยู่ครบ **ไม่ต้อง gen session ใหม่ ไม่ต้องแตะ GH secret**
+
+**ถ้าพลาด — เบอร์เก่าหมดอายุไปก่อนเปลี่ยน + login หลุด:** ไม่เป็นไร burner คือของใช้แล้วทิ้ง → สร้างบัญชีใหม่ + `python gen_session.py` + อัปเดต GH secret `FJ_SESSION_STRING` ตัวเดียว (~10 นาที) watcher กลับมาทำงาน.
+
+### ปรับแต่ง
+
+- `FJ_LOOKBACK_MIN` (default 60) — ดึงข่าวกี่นาทีก่อนหน้า flip
+- `GROQ_MODEL` (default `llama-3.3-70b-versatile`) — เปลี่ยน model ได้
+- `FJ_CHANNEL` (default `financialjuicelive`) — เปลี่ยน channel ได้
+
 ## Customize
 
 แก้ `watch.py`:
