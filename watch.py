@@ -34,12 +34,14 @@ INTERVALS = {
 # ── News enrichment config (Financial Juice via Telethon + Groq severity) ──
 # All best-effort: if any of these are unset/fail, the plain TA alert still sends.
 # Use a BURNER Telegram account session (NOT a personal account) — see README "News enrichment".
-TG_API_ID = os.environ.get("TG_API_ID", "")
-TG_API_HASH = os.environ.get("TG_API_HASH", "")
-FJ_SESSION_STRING = os.environ.get("FJ_SESSION_STRING", "")
-FJ_CHANNEL = os.environ.get("FJ_CHANNEL", "financialjuice")  # real username (fetch_fj uses this)
+# .strip() guards against a trailing newline/CR pasted into a GitHub secret —
+# urllib rejects header values with control chars ("Invalid header value").
+TG_API_ID = os.environ.get("TG_API_ID", "").strip()
+TG_API_HASH = os.environ.get("TG_API_HASH", "").strip()
+FJ_SESSION_STRING = os.environ.get("FJ_SESSION_STRING", "").strip()
+FJ_CHANNEL = os.environ.get("FJ_CHANNEL", "financialjuice").strip()  # real username (fetch_fj uses this)
 FJ_LOOKBACK_MIN = int(os.environ.get("FJ_LOOKBACK_MIN", "60"))
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "").strip()
 GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
 GROQ_TIMEOUT = 30
 
