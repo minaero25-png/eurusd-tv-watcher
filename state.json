@@ -1,7 +1,7 @@
 {
   "signals": {
     "M30": {
-      "summary_reco": "BUY",
+      "summary_reco": "STRONG_SELL",
       "summary_buy": 11,
       "summary_sell": 5,
       "summary_neutral": 10,
