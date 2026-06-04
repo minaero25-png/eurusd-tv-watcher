@@ -78,7 +78,7 @@ gh repo create eurusd-tv-watcher --private --source=. --push
 3. **สร้าง session string** (รันในเครื่อง ครั้งเดียว):
    ```powershell
    cd C:\Users\ELLE\eurusd-trading\tv-signal-watcher
-   pip install telethon groq
+   pip install telethon
    python gen_session.py
    # ใส่ api_id / api_hash / เบอร์ burner → Telegram ส่ง code มา → ใส่ code
    # copy บรรทัด SESSION STRING ที่ปริ้นออกมา

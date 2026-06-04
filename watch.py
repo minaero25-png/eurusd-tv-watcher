@@ -171,16 +171,48 @@ def fetch_recent_fj(minutes: int) -> list:
     return out
 
 
+def _groq_chat(prompt: str) -> str:
+    """POST to Groq's OpenAI-compatible chat API via urllib + 3 retries.
+    The groq SDK (httpx stack) hit APIConnectionError on the CI runner; urllib
+    works here — same transport send_telegram() uses successfully.
+    Returns the message content string, or '' on failure."""
+    body = json.dumps({
+        "model": GROQ_MODEL,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.3,
+        "max_tokens": 500,
+        "response_format": {"type": "json_object"},
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        "https://api.groq.com/openai/v1/chat/completions",
+        data=body,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json",
+        },
+    )
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(req, timeout=GROQ_TIMEOUT) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            return data["choices"][0]["message"]["content"]
+        except Exception as e:
+            detail = ""
+            if hasattr(e, "read"):
+                try:
+                    detail = " | " + e.read().decode("utf-8", "replace")[:200]
+                except Exception:
+                    pass
+            print(f"⚠️ Groq attempt {attempt + 1}/3 failed: {type(e).__name__}: {e}{detail}")
+    return ""
+
+
 def analyze_flip_with_groq(changes: list, fj_items: list) -> str:
     """Ask Groq which recent FJ headline most likely drove the TA flip, and rate
     severity (how market-moving) + credibility (confirmed vs speculative).
     Returns a formatted Thai HTML block for Telegram, or '' on any failure."""
     if not GROQ_API_KEY or not fj_items:
-        return ""
-    try:
-        from groq import Groq
-    except ImportError:
-        print("⚠️ groq SDK not installed — skip analysis")
         return ""
 
     flip_desc = ", ".join(f"{c['tf']} {c['old']}→{c['new']}" for c in changes)
@@ -201,18 +233,13 @@ def analyze_flip_with_groq(changes: list, fj_items: list) -> str:
         '"credibility": "HIGH|MEDIUM|LOW", "reasoning_th": "1-2 ประโยคภาษาไทย"}'
     )
 
+    content = _groq_chat(prompt)
+    if not content:
+        return ""
     try:
-        client = Groq(api_key=GROQ_API_KEY, timeout=GROQ_TIMEOUT)
-        resp = client.chat.completions.create(
-            model=GROQ_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
-            max_tokens=500,
-            response_format={"type": "json_object"},
-        )
-        data = json.loads(resp.choices[0].message.content)
+        data = json.loads(content)
     except Exception as e:
-        print(f"⚠️ Groq analysis failed: {type(e).__name__}: {e}")
+        print(f"⚠️ Groq JSON parse failed: {type(e).__name__}: {e}")
         return ""
 
     driver = data.get("driver_th")
