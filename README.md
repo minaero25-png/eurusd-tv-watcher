@@ -66,14 +66,14 @@ gh repo create eurusd-tv-watcher --private --source=. --push
 
 `FJ_SESSION_STRING` = กุญแจล็อกอินเข้าบัญชี Telegram **เต็ม**. ถ้าใช้บัญชีส่วนตัวแล้วหลุด =
 คนร้ายอ่านแชทส่วนตัว + แอบอ้างเป็นเราได้. **วิธีถูก:** สมัครบัญชี Telegram ใหม่ (เบอร์ใหม่/เสมือน)
-ที่ว่างเปล่า → join channel สาธารณะ `financialjuicelive` → ใช้บัญชีนี้เท่านั้น. ถ้า session burner หลุด
+ที่ว่างเปล่า → join channel สาธารณะ `financialjuice` (Financial Juice) → ใช้บัญชีนี้เท่านั้น. ถ้า session burner หลุด
 แย่ที่สุด = อ่าน channel สาธารณะ + แอบอ้างบัญชีเปล่าที่ไม่มีใครรู้จัก = เสียหายเกือบศูนย์.
 
 > เก็บ repo เป็น **private** เมื่อใช้ enrichment (secret มากขึ้น).
 
 ### ขั้นตอน (ครั้งเดียว)
 
-1. **สร้าง burner account** — เบอร์ใหม่ → ติดตั้ง Telegram → join `financialjuicelive`
+1. **สร้าง burner account** — เบอร์ใหม่ → ติดตั้ง Telegram → join `financialjuice` (Financial Juice)
 2. **ขอ API creds** — [my.telegram.org](https://my.telegram.org) (ล็อกอินด้วย burner) → API development tools → ได้ `api_id` + `api_hash`
 3. **สร้าง session string** (รันในเครื่อง ครั้งเดียว):
    ```powershell
@@ -120,7 +120,7 @@ burner ผูกกับ **ซิมเน็ตรายปี** → เบอ
 
 - `FJ_LOOKBACK_MIN` (default 60) — ดึงข่าวกี่นาทีก่อนหน้า flip
 - `GROQ_MODEL` (default `llama-3.3-70b-versatile`) — เปลี่ยน model ได้
-- `FJ_CHANNEL` (default `financialjuicelive`) — เปลี่ยน channel ได้
+- `FJ_CHANNEL` (default `financialjuice`) — เปลี่ยน channel ได้
 
 ## Customize
 
