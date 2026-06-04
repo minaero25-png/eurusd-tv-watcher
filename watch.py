@@ -252,7 +252,7 @@ def analyze_flip_with_groq(changes: list, fj_items: list) -> str:
 
     driver = data.get("driver_th")
     if not driver:
-        return "🤖 <i>ไม่พบข่าวที่อธิบายการพลิกได้ชัด — อาจเป็นการเคลื่อนไหวทางเทคนิค/สภาพคล่องบาง</i>"
+        return "🤖 <b>TA เปลี่ยน</b> — <i>ไม่พบข่าวที่อธิบายได้ชัด อาจเป็นการเคลื่อนไหวทางเทคนิค/สภาพคล่องบาง</i>"
 
     t = data.get("driver_time", "")
     sev = SEV_EMOJI.get(str(data.get("severity", "")).upper(), "—")
@@ -261,7 +261,7 @@ def analyze_flip_with_groq(changes: list, fj_items: list) -> str:
     driver_e = _html_escape(str(driver).strip())
     t_str = f" ({t})" if t else ""
     lines = [
-        f"🤖 <b>น่าจะเพราะ:</b> {driver_e}{t_str}",
+        f"🤖 <b>TA เปลี่ยน น่าจะเพราะ:</b> {driver_e}{t_str}",
         f"<b>ความรุนแรง:</b> {sev}",
         f"<b>น่าเชื่อถือ:</b> {cred}",
     ]
