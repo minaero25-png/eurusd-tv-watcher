@@ -45,6 +45,11 @@ GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "").strip()
 GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
 GROQ_TIMEOUT = 30
 
+# Claude (Anthropic API) — primary enrichment reasoner when ANTHROPIC_API_KEY is set;
+# Groq stays as the automatic fallback. ANTHROPIC_MODEL must be the current Sonnet id.
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "").strip() or "claude-sonnet-4-6"
+
 # severity: HIGH = big/dangerous move → red ; credibility: HIGH = trustworthy → green
 SEV_EMOJI = {"HIGH": "🔴 สูง", "MEDIUM": "🟡 ปานกลาง", "LOW": "🟢 ต่ำ"}
 CRED_EMOJI = {"HIGH": "🟢 สูง", "MEDIUM": "🟡 ปานกลาง", "LOW": "🔴 ต่ำ"}
@@ -182,7 +187,7 @@ def _groq_chat(prompt: str) -> str:
         "model": GROQ_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.3,
-        "max_tokens": 500,
+        "max_tokens": 700,
         "response_format": {"type": "json_object"},
     }).encode("utf-8")
     req = urllib.request.Request(
@@ -216,11 +221,56 @@ def _groq_chat(prompt: str) -> str:
     return ""
 
 
-def analyze_flip_with_groq(changes: list, fj_items: list) -> str:
-    """Ask Groq which recent FJ headline most likely drove the TA flip, and rate
-    severity (how market-moving) + credibility (confirmed vs speculative).
-    Returns a formatted Thai HTML block for Telegram, or '' on any failure."""
-    if not GROQ_API_KEY or not fj_items:
+def _claude_chat(prompt: str) -> str:
+    """POST to the Anthropic Messages API via urllib + 3 retries. Returns reply text or ''."""
+    body = json.dumps({
+        "model": ANTHROPIC_MODEL,
+        "max_tokens": 700,
+        "messages": [{"role": "user", "content": prompt}],
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages",
+        data=body, method="POST",
+        headers={
+            "x-api-key": ANTHROPIC_API_KEY,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        },
+    )
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(req, timeout=GROQ_TIMEOUT) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            return "".join(
+                b.get("text", "") for b in data.get("content", []) if b.get("type") == "text"
+            )
+        except Exception as e:
+            detail = ""
+            if hasattr(e, "read"):
+                try:
+                    detail = " | " + e.read().decode("utf-8", "replace")[:200]
+                except Exception:
+                    pass
+            print(f"⚠️ Claude attempt {attempt + 1}/3 failed: {type(e).__name__}: {e}{detail}")
+    return ""
+
+
+def _extract_json(s: str):
+    """Parse the first {...} object out of a model reply (tolerates ```json fences)."""
+    i, j = s.find("{"), s.rfind("}")
+    if i == -1 or j <= i:
+        return None
+    try:
+        return json.loads(s[i:j + 1])
+    except Exception:
+        return None
+
+
+def analyze_flip(changes: list, fj_items: list) -> str:
+    """Ask the LLM (Claude if ANTHROPIC_API_KEY set, else Groq; Groq is also the fallback
+    if Claude fails) which recent FJ headline most likely drove the TA flip, and rate
+    severity + credibility. Returns a Thai HTML block for Telegram, or '' on any failure."""
+    if not fj_items or not (ANTHROPIC_API_KEY or GROQ_API_KEY):
         return ""
 
     flip_desc = ", ".join(f"{c['tf']} {c['old']}→{c['new']}" for c in changes)
@@ -245,19 +295,25 @@ def analyze_flip_with_groq(changes: list, fj_items: list) -> str:
         "- severity: how market-moving — HIGH (>30 pips potential) / MEDIUM (10-30) / LOW (minor)\n"
         "- credibility: confirmed vs speculative — HIGH (official action/confirmed data) / "
         "MEDIUM (one-sided statement, unconfirmed) / LOW (rumor/speculation)\n\n"
-        "Write driver_th and reasoning_th in THAI, concise. Output strict JSON only, no markdown:\n"
-        '{"driver_th": "...", "driver_time": "HH:MM", "severity": "HIGH|MEDIUM|LOW", '
-        '"credibility": "HIGH|MEDIUM|LOW", "reasoning_th": "1-2 ประโยคภาษาไทย"}'
+        "Write driver_th and reasoning_th in THAI. reasoning_th MUST be at most 2 short "
+        "sentences (it goes straight into a Telegram alert) — be brief, no preamble. "
+        "Output strict JSON only, no markdown:\n"
+        '{"driver_th": "..." or null, "driver_time": "HH:MM", "severity": "HIGH|MEDIUM|LOW", '
+        '"credibility": "HIGH|MEDIUM|LOW", "reasoning_th": "<=2 sentences"}'
     )
 
-    content = _groq_chat(prompt)
+    content = provider = ""
+    if ANTHROPIC_API_KEY:
+        content, provider = _claude_chat(prompt), "claude"
+    if not content and GROQ_API_KEY:
+        content, provider = _groq_chat(prompt), ("groq-fallback" if ANTHROPIC_API_KEY else "groq")
     if not content:
         return ""
-    try:
-        data = json.loads(content)
-    except Exception as e:
-        print(f"⚠️ Groq JSON parse failed: {type(e).__name__}: {e}")
+    data = _extract_json(content)
+    if data is None:
+        print("⚠️ enrichment: could not parse JSON from model reply")
         return ""
+    print(f"  enrichment via {provider}")
 
     driver = data.get("driver_th")
     if not driver:
@@ -339,7 +395,7 @@ def main() -> int:
         # News enrichment — best-effort. Wrapped so a failure here never blocks the alert.
         try:
             fj_items = fetch_recent_fj(FJ_LOOKBACK_MIN)
-            analysis = analyze_flip_with_groq(changes, fj_items)
+            analysis = analyze_flip(changes, fj_items)
             if analysis:
                 msg = msg + "\n\n" + analysis
         except Exception as e:
