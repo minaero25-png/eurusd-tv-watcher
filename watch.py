@@ -295,11 +295,15 @@ def analyze_flip(changes: list, fj_items: list) -> str:
         "- severity: how market-moving — HIGH (>30 pips potential) / MEDIUM (10-30) / LOW (minor)\n"
         "- credibility: confirmed vs speculative — HIGH (official action/confirmed data) / "
         "MEDIUM (one-sided statement, unconfirmed) / LOW (rumor/speculation)\n\n"
-        "Write driver_th and reasoning_th in THAI. reasoning_th MUST be at most 2 short "
-        "sentences (it goes straight into a Telegram alert) — be brief, no preamble. "
+        "Write driver_th and reasoning_th in THAI. reasoning_th rules:\n"
+        "- Plain everyday Thai a non-trader understands. If you must use a term (short-covering, "
+        "risk-on, hawkish/dovish, etc.), explain it in a few simple words right there.\n"
+        "- Do NOT restate the TA signal arrows like 'M30 STRONG_SELL->BUY' — the reader already "
+        "sees the flip above the reasoning.\n"
+        "- At most 2 short sentences, straight to the point, no preamble.\n"
         "Output strict JSON only, no markdown:\n"
         '{"driver_th": "..." or null, "driver_time": "HH:MM", "severity": "HIGH|MEDIUM|LOW", '
-        '"credibility": "HIGH|MEDIUM|LOW", "reasoning_th": "<=2 sentences"}'
+        '"credibility": "HIGH|MEDIUM|LOW", "reasoning_th": "plain Thai, <=2 sentences"}'
     )
 
     content = provider = ""
