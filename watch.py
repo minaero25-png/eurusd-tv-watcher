@@ -50,6 +50,13 @@ GROQ_TIMEOUT = 30
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "").strip()
 ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "").strip() or "claude-sonnet-4-6"
 
+# Master switch for the per-flip 🤖 news enrichment. Default OFF — the watcher sends
+# plain TA-flip alerts ("go look") and the user asks the Telegram bot ("why did EURUSD
+# move at HH:MM?") for an on-demand, full-context ground-check (Evening-Digest quality).
+# Real-time per-flip auto-attribution can't match that (no hindsight, 60-min single feed),
+# so it's disabled. Set ENRICH_ENABLED=1 to turn the 🤖 line back on.
+ENRICH_ENABLED = os.environ.get("ENRICH_ENABLED", "").strip() == "1"
+
 # severity: HIGH = big/dangerous move → red ; credibility: HIGH = trustworthy → green
 SEV_EMOJI = {"HIGH": "🔴 สูง", "MEDIUM": "🟡 ปานกลาง", "LOW": "🟢 ต่ำ"}
 CRED_EMOJI = {"HIGH": "🟢 สูง", "MEDIUM": "🟡 ปานกลาง", "LOW": "🔴 ต่ำ"}
@@ -407,14 +414,16 @@ def main() -> int:
 
     if changes and not is_first_run:
         msg = format_alert(changes, current, now)
-        # News enrichment — best-effort. Wrapped so a failure here never blocks the alert.
-        try:
-            fj_items = fetch_recent_fj(FJ_LOOKBACK_MIN)
-            analysis = analyze_flip(changes, fj_items)
-            if analysis:
-                msg = msg + "\n\n" + analysis
-        except Exception as e:
-            print(f"⚠️ enrichment failed (sending plain alert): {type(e).__name__}: {e}")
+        # News enrichment — OFF by default (ENRICH_ENABLED). When on, best-effort: a failure
+        # here never blocks the plain alert. "Why" is handled on-demand via the Telegram bot.
+        if ENRICH_ENABLED:
+            try:
+                fj_items = fetch_recent_fj(FJ_LOOKBACK_MIN)
+                analysis = analyze_flip(changes, fj_items)
+                if analysis:
+                    msg = msg + "\n\n" + analysis
+            except Exception as e:
+                print(f"⚠️ enrichment failed (sending plain alert): {type(e).__name__}: {e}")
         print(msg)
         send_telegram(msg)
     elif is_first_run:
