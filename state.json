@@ -3,11 +3,11 @@
     "M30": {
       "summary_reco": "SELL",
       "summary_buy": 3,
-      "summary_sell": 14,
-      "summary_neutral": 9,
+      "summary_sell": 15,
+      "summary_neutral": 8,
       "osc_reco": "NEUTRAL",
       "ma_reco": "STRONG_SELL",
-      "close": 1.15198
+      "close": 1.15219
     },
     "H1": {
       "summary_reco": "STRONG_SELL",
@@ -16,8 +16,8 @@
       "summary_neutral": 8,
       "osc_reco": "SELL",
       "ma_reco": "STRONG_SELL",
-      "close": 1.15198
+      "close": 1.15219
     }
   },
-  "last_check_utc": "2026-06-05T19:15:20.029062+00:00"
+  "last_check_utc": "2026-06-05T19:30:25.525516+00:00"
 }
