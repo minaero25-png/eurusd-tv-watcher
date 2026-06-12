@@ -11,13 +11,13 @@
     },
     "H1": {
       "summary_reco": "BUY",
-      "summary_buy": 15,
+      "summary_buy": 14,
       "summary_sell": 2,
-      "summary_neutral": 9,
+      "summary_neutral": 10,
       "osc_reco": "NEUTRAL",
       "ma_reco": "STRONG_BUY",
       "close": 1.15732
     }
   },
-  "last_check_utc": "2026-06-12T14:45:23.351106+00:00"
+  "last_check_utc": "2026-06-12T15:00:30.536445+00:00"
 }
