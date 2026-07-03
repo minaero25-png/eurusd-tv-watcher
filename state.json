@@ -3,21 +3,21 @@
     "M30": {
       "summary_reco": "SELL",
       "summary_buy": 7,
-      "summary_sell": 10,
-      "summary_neutral": 9,
+      "summary_sell": 11,
+      "summary_neutral": 8,
       "osc_reco": "NEUTRAL",
       "ma_reco": "SELL",
-      "close": 1.14393
+      "close": 1.14382
     },
     "H1": {
       "summary_reco": "BUY",
-      "summary_buy": 11,
+      "summary_buy": 10,
       "summary_sell": 7,
-      "summary_neutral": 8,
-      "osc_reco": "BUY",
+      "summary_neutral": 9,
+      "osc_reco": "NEUTRAL",
       "ma_reco": "BUY",
-      "close": 1.14393
+      "close": 1.14382
     }
   },
-  "last_check_utc": "2026-07-03T19:15:20.899245+00:00"
+  "last_check_utc": "2026-07-03T19:30:37.537439+00:00"
 }
