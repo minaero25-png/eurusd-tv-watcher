@@ -12,12 +12,12 @@
     "H1": {
       "summary_reco": "BUY",
       "summary_buy": 11,
-      "summary_sell": 6,
-      "summary_neutral": 9,
+      "summary_sell": 5,
+      "summary_neutral": 10,
       "osc_reco": "BUY",
       "ma_reco": "BUY",
       "close": 1.16174
     }
   },
-  "last_check_utc": "2026-08-31T21:45:28.428173+00:00"
+  "last_check_utc": "2026-08-31T22:00:33.414150+00:00"
 }
