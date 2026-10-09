@@ -2,22 +2,22 @@
   "signals": {
     "M30": {
       "summary_reco": "SELL",
-      "summary_buy": 4,
-      "summary_sell": 13,
+      "summary_buy": 3,
+      "summary_sell": 14,
       "summary_neutral": 9,
       "osc_reco": "NEUTRAL",
       "ma_reco": "STRONG_SELL",
-      "close": 1.11957
+      "close": 1.11926
     },
     "H1": {
       "summary_reco": "SELL",
-      "summary_buy": 5,
+      "summary_buy": 4,
       "summary_sell": 15,
-      "summary_neutral": 6,
+      "summary_neutral": 7,
       "osc_reco": "BUY",
       "ma_reco": "STRONG_SELL",
-      "close": 1.11957
+      "close": 1.11926
     }
   },
-  "last_check_utc": "2026-10-09T17:15:19.802498+00:00"
+  "last_check_utc": "2026-10-09T17:30:27.857087+00:00"
 }
