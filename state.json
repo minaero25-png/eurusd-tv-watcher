@@ -7,7 +7,7 @@
       "summary_neutral": 9,
       "osc_reco": "NEUTRAL",
       "ma_reco": "BUY",
-      "close": 1.1230499999999999
+      "close": 1.12302
     },
     "H1": {
       "summary_reco": "NEUTRAL",
@@ -16,8 +16,8 @@
       "summary_neutral": 9,
       "osc_reco": "NEUTRAL",
       "ma_reco": "BUY",
-      "close": 1.1230499999999999
+      "close": 1.12302
     }
   },
-  "last_check_utc": "2026-11-04T21:00:35.630563+00:00"
+  "last_check_utc": "2026-11-04T21:15:24.472423+00:00"
 }
